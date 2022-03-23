@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Store</title>
+</head>
+<style>
+    table{
+        border: 1px solid black;
+    }
+    table>thead>tr>td{
+        border: 1px solid black;
+    }
+    table>tbody>tr>td{
+        border: 1px solid black;
+    }
+</style>
+<body>
+    <h1>서점</h1>
+    <form name="register_book">
+        <p><strong>mode : <span id="mode">create</span></strong></p>
+        <label>아이디 : <input type="text" name="book_id" id="" value="999" ></label>
+        <br>
+        <label>이름 : <input type="text" name="book_name" id="" value="superman"></label>
+        <br>
+        <label>장르 : 
+            <select name="book_genre" id="">
+                <option value="NOVEL">NOVEL</option>
+                <option value="HISTORY">HISTORY</option>
+            </select>
+        </label>
+        <br>            
+        <button type="button" id="btn_submit" style="display: inline-block;">입력</button>
+        <button type="button" id="btn_modify_com" style="display: none;">수정완료</button>
+    </form>
+    <br>
+    <button id="btn_print" type="button">출력</button>
+    
+    <table>
+        <thead>
+            <tr>
+                <td>아이디</td>
+                <td>이름</td>
+                <td>장르</td>
+                <td>삭제</td>
+                <td>수정</td>
+            </tr>
+        </thead>
+        <tbody id= bookList>
+            <tr class = "book_clone" style="display: none;">
+                <td class="id">01</td>
+                <td class="name">02</td>
+                <td class="genre">03</td>
+                <td class="del"><button class="btn_del" type="button">X</button></td>
+                <td class="modify"><button class="btn_modify" type="button">O</button></td>
+            </tr>
+        </tbody>
+    </table>
+<script>
+    
+    const bookList = document.getElementById("bookList");
+    let book_clone = document.querySelector("#bookList>.book_clone");
+    let mode = document.getElementById("mode");
+
+    const btn_print = document.querySelector("#btn_print");
+    const btn_submit = document.querySelector("#btn_submit");
+    const btn_modify_com = document.querySelector("#btn_modify_com");
+    
+    let id = document.getElementsByClassName("id");
+    let name = document.getElementsByClassName("name");
+    let genre = document.getElementsByClassName("genre");
+
+    const formData = function(id, name, genre){
+        this.id = id;
+        this.name = name;
+        this.genre = genre;
+    }
+
+    btn_print.addEventListener("click", ()=>{
+        book_shelf_read ();
+    });
+
+    btn_submit.addEventListener("click", ()=>{
+
+         let data = new formData(
+            register_book.book_id.value,
+            register_book.book_name.value,
+            register_book.book_genre.value
+        )
+        boock_shelf_create (data);
+    });
+
+    btn_modify_com.addEventListener("click", ()=>{
+        console.log("수정");
+        let data = new formData(
+            register_book.book_id.value,
+            register_book.book_name.value,
+            register_book.book_genre.value
+        )
+        register_book.book_id.removeAttribute("disabled");
+        register_book.btn_submit.setAttribute("style", "display: inline-block;");
+        register_book.btn_modify_com.setAttribute("style", "display: none;");
+        mode.innerText="create";
+        boock_shelf_update (data);
+    });
+
+
+    function book_shelf_read (){
+        fetch("/bookshelf/read.do").then( (res)=>{ return res.json() } ).then(
+        (r_list)=>{
+            bookList.innerHTML = "";
+            for( key in r_list){
+                let book_node = book_clone.cloneNode(true);
+                book_node.style.display = "";
+                bookList.append(book_node);
+            }
+
+            let btn_del = document.querySelectorAll(".btn_del");
+            let btn_modify = document.querySelectorAll(".btn_modify");
+            let id = document.getElementsByClassName("id");
+            let name = document.getElementsByClassName("name");
+            let genre = document.getElementsByClassName("genre");
+
+            for(key in r_list){
+                for(inner_key in r_list[key]){
+                    if(inner_key == "ID"){
+                        id[key].innerHTML = r_list[key]["ID"];
+                        btn_del[key].setAttribute("Id", "d"+r_list[key]["ID"]);
+                        btn_del[key].onclick = function (){
+                            book_shelf_delete (this.id.slice(1));
+                        }
+
+                        btn_modify[key].setAttribute("Id", "m"+r_list[key]["ID"]);
+                        btn_modify[key].onclick = function (){
+                            let id = document.getElementsByClassName("id");
+                            let name = document.getElementsByClassName("name");
+                            let genre = document.getElementsByClassName("genre");
+                            
+                            for(let i = 0; i < id.length ; i++){
+                                if(id[i].innerHTML == this.id.slice(1)){
+                                    register_book.book_id.value = id[i].innerHTML;
+                                    register_book.book_name.value = name[i].innerHTML;
+                                    register_book.book_genre.value = genre[i].innerHTML;
+                                    register_book.book_id.setAttribute("disabled", "");
+                                    register_book.btn_submit.setAttribute("style", "display: none;");
+                                    register_book.btn_modify_com.setAttribute("style", "display: inline-block;");
+                                    mode.innerText="modify";
+                                }
+                            }
+                            
+                        }
+                    }
+                    else if(inner_key == "NAME"){
+                        name[key].innerHTML = r_list[key]["NAME"];
+                    }
+                    else if(inner_key == "GENRE"){
+                        genre[key].innerHTML = r_list[key]["GENRE"];
+                    }
+                }
+            }
+        })
+    }
+
+    function boock_shelf_create (data) {
+        fetch('/bookshelf/create.do', {
+            method : "post",
+            headers : {"Content-type":"application/json"},
+            body : JSON.stringify(data)
+        }).then((res)=>{return res.json}).then((result_create)=>{book_shelf_read ();})
+    }
+
+    function book_shelf_delete (id) {
+        fetch('/bookshelf/delete.do?id='+id).then((res)=>{return res.json}).then((result_del)=>{
+            book_shelf_read ();
+        })
+    }
+
+    function boock_shelf_update (data) {
+        fetch('/bookshelf/update.do', {
+            method : "post",
+            headers : {"Content-type":"application/json"},
+            body : JSON.stringify(data)
+        }).then((res)=>{return res.json}).then((result_update)=>{book_shelf_read ();})
+    }
+    
+    
+</script>
+    
+</body>
+</html>
